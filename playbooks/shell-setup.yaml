@@ -1,0 +1,92 @@
+---
+- name: Setup Shell Environment
+  hosts: all
+  become: yes
+  become_user: "{{ ansible_user }}"
+
+  tasks:
+    - name: Setup prerequisites
+      become_user: root
+      apt:
+        update_cache: true
+        pkg:
+          - zsh
+          - python-is-python3
+          - python3-pip
+          - avahi-daemon
+          - snapd
+
+    - name: check if oh-my-zsh is installed
+      stat:
+        path: /home/{{ ansible_user }}/.oh-my-zsh
+      register: oh_my_zsh
+
+    - name: Get oh-my-zsh setup script
+      get_url:
+        url: https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh
+        dest: /tmp/install.sh
+        mode: "755"
+      when: oh_my_zsh.stat.exists == false
+
+    - name: Run oh-my-zsh setup script
+      shell: /tmp/install.sh --unattended
+      args:
+        executable: /bin/sh
+      when: oh_my_zsh.stat.exists == false
+
+    - name: Updating {{ ansible_user }} groups and shell
+      become_user: root
+      user:
+        name: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        shell: /bin/zsh
+        groups: sudo,audio,dialout
+        append: yes
+
+    - name: change style to headline
+      become_user: "{{ ansible_user }}"
+      lineinfile:
+        path: /home/{{ ansible_user }}/.zshrc
+        regexp: "^ZSH_THEME="
+        line: ZSH_THEME="avit"
+
+    - name: setup DISPLAY=:0 for ssh users
+      become_user: "{{ ansible_user }}"
+      lineinfile:
+        path: /home/{{ ansible_user }}/.zshrc
+        line: if (( ${+SSH_CLIENT} )); then export DISPLAY=:0; fi
+
+    - name: set ssh to only work for {{ ansible_user }}
+      become_user: root
+      lineinfile:
+        path: /etc/ssh/sshd_config.d/{{ ansible_user }}.conf
+        line: "AllowUsers {{ ansible_user }}"
+        create: true
+        owner: root
+        group: root
+
+    - name: set {{ ansible_user }} process priority/niceness
+      become_user: root
+      lineinfile:
+        path: /etc/security/limits.conf
+        line: "{{ ansible_user }} soft priority -11"
+        insertbefore: "# End of file"
+        owner: root
+        group: root
+
+    - name: Set sudo without password
+      become_user: root
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/shell-setup/nopass"
+        dest: /etc/sudoers.d/nopass
+        owner: root
+        group: root
+        mode: "0640"
+
+    - name: Create config directory /home/{{ ansible_user }}/config
+      file:
+        path: /home/{{ ansible_user }}/config
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0755"

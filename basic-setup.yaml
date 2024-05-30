@@ -22,8 +22,10 @@
           - x11vnc
           - xserver-xorg-video-dummy
           - alsa-utils
+          - pulseaudio
           - pipewire
           - pipewire-audio-client-libraries
+          - pipewire-pulse
           - mesa-vulkan-drivers
           - mesa-utils
           - vulkan-tools

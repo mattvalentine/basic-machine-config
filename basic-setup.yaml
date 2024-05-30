@@ -13,21 +13,27 @@
           - python-is-python3
           - python3-pip
           - avahi-daemon
+          - xorg
           - lightdm
           - libx11-dev
+          - libgtk-4-dev
           - x11-utils
           - xinput
-          - mesa-utils
           - x11vnc
           - xserver-xorg-video-dummy
+          - alsa-utils
+          - pipewire
+          - pipewire-audio-client-libraries
+          - mesa-vulkan-drivers
+          - mesa-utils
+          - vulkan-tools
 
-    - name: Install additional packages for 24.04
+
+    - name: Install raspi-config
       ansible.builtin.apt:
-        update_cache: true
-        pkg:
-          - xorg
-          - libgtkmm-4.0-dev
-      when: ansible_distribution_version == "24.04"
+        name: raspi-config
+        state: present
+      when: ansible_kernel is match(".*raspi.*")
 
     - name: Check if oh-my-zsh is installed
       ansible.builtin.stat:
@@ -333,8 +339,4 @@
         group: "{{ ansible_user }}"
         mode: "0664"
 
-    - name: Reboot in 1 minute
-      become: true
-      become_method: ansible.builtin.sudo
-      ansible.builtin.command: shutdown -r 1
-      changed_when: false
+

@@ -24,7 +24,6 @@
     - name: Install additional packages for 24.04
       ansible.builtin.apt:
         update_cache: true
-        # install_recommends: false
         pkg:
           - xorg
           - libgtkmm-4.0-dev
@@ -91,12 +90,13 @@
     - name: Set sudo without password
       become: true
       become_method: ansible.builtin.sudo
-      ansible.builtin.copy:
-        src: "{{ playbook_dir }}/shell-setup/nopass"
-        dest: /etc/sudoers.d/nopass
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers.d/nopass
+        line: "{{ ansible_user }} ALL=(ALL) NOPASSWD:ALL"
         owner: root
         group: root
         mode: "0640"
+        create: true
 
 
     - name: Create xsessions directory
@@ -109,12 +109,42 @@
         owner: root
         group: root
 
-    - name: Copy kiosk.desktop
+    - name: Configure standby in kiosk.desktop Exec
       become: true
       become_method: ansible.builtin.sudo
-      ansible.builtin.copy:
-        src: "{{ playbook_dir }}/display-setup/kiosk.desktop"
-        dest: /usr/share/xsessions/kiosk.desktop
+      community.general.ini_file:
+        path: /usr/share/xsessions/kiosk.desktop
+        section: Desktop Entry
+        option: Encoding
+        value: UTF-8
+        backup: false
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+        create: true
+
+    - name: Configure standby in kiosk.desktop Exec
+      become: true
+      become_method: ansible.builtin.sudo
+      community.general.ini_file:
+        path: /usr/share/xsessions/kiosk.desktop
+        section: Desktop Entry
+        option: Name
+        value: Kiosk
+        backup: false
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+
+    - name: Configure standby in kiosk.desktop Exec
+      become: true
+      become_method: ansible.builtin.sudo
+      community.general.ini_file:
+        path: /usr/share/xsessions/kiosk.desktop
+        section: Desktop Entry
+        option: Comment
+        value: Start Kiosk
+        backup: false
         owner: "{{ ansible_user }}"
         group: "{{ ansible_user }}"
         mode: "0644"
@@ -158,15 +188,19 @@
         group: "{{ ansible_user }}"
         mode: "0644"
 
-    - name: Copy xhost.sh for {{ ansible_user }}
+    - name: Setup xhost.sh for {{ ansible_user }}
       become: true
       become_method: ansible.builtin.sudo
-      ansible.builtin.copy:
-        src: "{{ playbook_dir }}/display-setup/xhost.sh"
-        dest: "/home/{{ ansible_user }}/xhost.sh"
+      ansible.builtin.blockinfile:
+        path: "/home/{{ ansible_user }}/xhost.sh"
         owner: "{{ ansible_user }}"
         group: "{{ ansible_user }}"
         mode: "0755"
+        create: true
+        block: |
+          #!/bin/bash
+          xhost +local:
+          xset s off -dpms
 
     - name: Set lightdm kiosk config
       become: true
@@ -283,7 +317,7 @@
       become: true
       become_method: ansible.builtin.sudo
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../standby-screen/standby.py"
+        src: "{{ playbook_dir }}/standby-screen/standby.py"
         dest: /home/{{ ansible_user }}/standby-screen/standby.py
         owner: "{{ ansible_user }}"
         group: "{{ ansible_user }}"
@@ -293,7 +327,7 @@
       become: true
       become_method: ansible.builtin.sudo
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../standby-screen/theme.css"
+        src: "{{ playbook_dir }}/standby-screen/theme.css"
         dest: /home/{{ ansible_user }}/standby-screen/theme.css
         owner: "{{ ansible_user }}"
         group: "{{ ansible_user }}"

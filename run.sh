@@ -10,7 +10,7 @@ echo
 export ANSIBLE_HOST_KEY_CHECKING=False
 
 # Run the Ansible playbook
-ansible-playbook playbooks/basic-setup.yaml \
+ansible-playbook basic-setup.yaml \
   -i "$REMOTE_HOST," \
   -e "ansible_user=$REMOTE_USER ansible_ssh_pass=$REMOTE_PASSWORD ansible_become_pass=$REMOTE_PASSWORD"
 

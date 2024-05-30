@@ -1,0 +1,303 @@
+---
+- name: Setup Shell Environment
+  hosts: all
+  become: true
+  become_method: ansible.builtin.sudo
+
+  tasks:
+    - name: Setup prerequisites
+      ansible.builtin.apt:
+        update_cache: true
+        pkg:
+          - zsh
+          - python-is-python3
+          - python3-pip
+          - avahi-daemon
+          - lightdm
+          - libx11-dev
+          - x11-utils
+          - xinput
+
+    - name: Install additional packages for 24.04
+      ansible.builtin.apt:
+        update_cache: true
+        # install_recommends: false
+        pkg:
+          - xorg
+          - libgtkmm-4.0-dev
+      when: ansible_distribution_version == "24.04"
+
+    - name: Check if oh-my-zsh is installed
+      ansible.builtin.stat:
+        path: /home/{{ ansible_user }}/.oh-my-zsh
+      register: oh_my_zsh
+
+    - name: Get oh-my-zsh setup script
+      become: true
+      become_user: "{{ ansible_user }}"
+      ansible.builtin.get_url:
+        url: https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh
+        dest: /tmp/install.sh
+        mode: "755"
+      when: not oh_my_zsh.stat.exists
+
+    - name: Run oh-my-zsh setup script
+      become: true
+      become_user: "{{ ansible_user }}"
+      ansible.builtin.shell: /tmp/install.sh --unattended
+      args:
+        executable: /bin/sh
+      when: not oh_my_zsh.stat.exists
+      changed_when: true
+
+    - name: Updating groups and shell for {{ ansible_user }}
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        shell: /bin/zsh
+        groups: sudo,audio,dialout,plugdev,video,netdev,bluetooth
+        append: true
+
+    - name: Change zsh style to avit
+      become: true
+      become_user: "{{ ansible_user }}"
+      ansible.builtin.lineinfile:
+        path: /home/{{ ansible_user }}/.zshrc
+        regexp: "^ZSH_THEME="
+        line: ZSH_THEME="avit"
+
+    - name: Setup DISPLAY=:0 for ssh users
+      become: true
+      become_user: "{{ ansible_user }}"
+      ansible.builtin.lineinfile:
+        path: /home/{{ ansible_user }}/.zshrc
+        line: if (( ${+SSH_CLIENT} )); then export DISPLAY=:0; fi
+
+    - name: Set process priority/niceness for {{ ansible_user }}
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.lineinfile:
+        path: /etc/security/limits.conf
+        line: "{{ ansible_user }} soft priority -11"
+        insertbefore: "# End of file"
+        owner: root
+        group: root
+
+    - name: Set sudo without password
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/shell-setup/nopass"
+        dest: /etc/sudoers.d/nopass
+        owner: root
+        group: root
+        mode: "0640"
+
+
+    - name: Create xsessions directory
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.file:
+        path: /usr/share/xsessions/
+        state: directory
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Copy kiosk.desktop
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/display-setup/kiosk.desktop"
+        dest: /usr/share/xsessions/kiosk.desktop
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+
+    - name: Configure standby in kiosk.desktop Exec
+      become: true
+      become_method: ansible.builtin.sudo
+      community.general.ini_file:
+        path: /usr/share/xsessions/kiosk.desktop
+        section: Desktop Entry
+        option: Exec
+        value: "/home/{{ ansible_user }}/standby-screen/standby.py"
+        backup: false
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+
+    - name: Configure standby in kiosk.desktop TryExec
+      become: true
+      become_method: ansible.builtin.sudo
+      community.general.ini_file:
+        path: /usr/share/xsessions/kiosk.desktop
+        section: Desktop Entry
+        option: TryExec
+        value: "/home/{{ ansible_user }}/standby-screen/standby.py"
+        backup: false
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+
+    - name: Set display manager for {{ ansible_user }}
+      become: true
+      become_method: ansible.builtin.sudo
+      community.general.ini_file:
+        path: "/home/{{ ansible_user }}/.dmrc"
+        section: Desktop
+        option: Session
+        value: kiosk
+        backup: false
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+
+    - name: Copy xhost.sh for {{ ansible_user }}
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/display-setup/xhost.sh"
+        dest: "/home/{{ ansible_user }}/xhost.sh"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0755"
+
+    - name: Set lightdm kiosk config
+      become: true
+      become_method: ansible.builtin.sudo
+      community.general.ini_file:
+        path: /usr/share/lightdm/lightdm.conf.d/99-kiosk.conf
+        section: "Seat:*"
+        option: user-session
+        # session name NOT user name
+        value: kiosk
+        backup: false
+        mode: "0644"
+
+    - name: Set lightdm to auto login at startup 1/3
+      become: true
+      become_method: ansible.builtin.sudo
+      community.general.ini_file:
+        path: /etc/lightdm/lightdm.conf
+        section: "Seat:*"
+        option: autologin-guest
+        value: false
+        backup: false
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Set lightdm to auto login at startup 2/3
+      become: true
+      become_method: ansible.builtin.sudo
+      community.general.ini_file:
+        path: /etc/lightdm/lightdm.conf
+        section: "Seat:*"
+        option: autologin-user
+        value: "{{ ansible_user }}"
+        backup: false
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Set lightdm to auto login at startup 3/3
+      become: true
+      become_method: ansible.builtin.sudo
+      community.general.ini_file:
+        path: /etc/lightdm/lightdm.conf
+        section: "Seat:*"
+        option: autologin-user-timeout
+        value: 0
+        backup: false
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Set lightdm to share its xsession with other users
+      become: true
+      become_method: ansible.builtin.sudo
+      community.general.ini_file:
+        path: /etc/lightdm/lightdm.conf
+        section: "SeatDefaults"
+        option: display-setup-script
+        value: /home/{{ ansible_user }}/xhost.sh
+        backup: false
+        mode: "0755"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+
+    - name: Turn off the cursor
+      become: true
+      become_method: ansible.builtin.sudo
+      community.general.ini_file:
+        path: /etc/lightdm/lightdm.conf
+        section: "SeatDefaults"
+        option: xserver-command
+        value: X -nocursor
+        backup: false
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Set display manager to lightdm
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.lineinfile:
+        state: present
+        dest: /etc/X11/default-display-manager
+        line: /usr/sbin/lightdm
+
+    - name: Set display manager to NOT be gdm3
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.lineinfile:
+        state: absent
+        dest: /etc/X11/default-display-manager
+        line: /usr/sbin/gdm3
+
+    - name: Run dpkg-reconfigure for lightdm
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.shell: dpkg-reconfigure --frontend noninteractive lightdm
+      args:
+        executable: /bin/zsh
+      changed_when: false
+
+    - name: Creates "standby-screen" directory
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.file:
+        path: /home/{{ ansible_user }}/standby-screen
+        state: directory
+        mode: "0775"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+
+    - name: Copy standby script
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../standby-screen/standby.py"
+        dest: /home/{{ ansible_user }}/standby-screen/standby.py
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0775"
+
+    - name: Copy standby theme
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../standby-screen/theme.css"
+        dest: /home/{{ ansible_user }}/standby-screen/theme.css
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0664"
+
+    - name: Reboot in 1 minute
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.command: shutdown -r 1
+      changed_when: false

@@ -50,4 +50,6 @@ Enter the SSH password:
 
 and then it should run the ansible scripts. It can take a while to run (especially `Install packages`), by all means go get lunch or grab a beer or something. If you get antsy like me, feel free to ssh in from another terminal session, and open top to monitor for dpkg and apt-get commands to make yourself feel more confident that it's still working.
 
-If it's successful, it should reboot a minute or so after the script completes, and show it's hostname and IP address on grey background. From there you can ssh in and run whatever you want. Happy hacking!
+If it's successful, it should reboot a minute or so after the script completes, and show it's hostname and IP address on grey background. From there you can ssh in and run whatever you want. Try to ssh in and run `glxgears` to test. 
+
+Happy hacking!

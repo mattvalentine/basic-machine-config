@@ -5,7 +5,7 @@
   become_method: ansible.builtin.sudo
 
   tasks:
-    - name: Setup prerequisites
+    - name: Setup prerequisites (This may take a while)
       ansible.builtin.apt:
         update_cache: true
         pkg:
@@ -17,6 +17,9 @@
           - libx11-dev
           - x11-utils
           - xinput
+          - mesa-utils
+          - x11vnc
+          - xserver-xorg-video-dummy
 
     - name: Install additional packages for 24.04
       ansible.builtin.apt:

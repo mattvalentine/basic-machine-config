@@ -10,7 +10,7 @@ It also installs some shell stuff like oh-my-zsh, and allows sudoers to sudo wit
 
 This was built from much larger project specific scripts I've built in the past. It intentionally leaves a lot of things out like loading node via nvm or initializing pm2, or installing ROS2. So feel free to fork it and add what you need.
 
-The only updates I have in mind right now are a better standby screen, and setting up plymouth to hide post messages on boot and shutdown.
+The only updates I have in mind right now are a better standby screen.
 
 ## Prerequisites
 
@@ -51,5 +51,7 @@ Enter the SSH password:
 and then it should run the ansible scripts. It can take a while to run (especially `Install packages`), by all means go get lunch or grab a beer or something. If you get antsy like me, feel free to ssh in from another terminal session, and open top to monitor for dpkg and apt-get commands to make yourself feel more confident that it's still working.
 
 If it's successful, it should reboot a minute or so after the script completes, and show it's hostname and IP address on grey background. From there you can ssh in and run whatever you want. Try to ssh in and run `glxgears` to test. 
+
+If you want a logo other than the default durring boot up and shutdown, just swap in a different png file.
 
 Happy hacking!

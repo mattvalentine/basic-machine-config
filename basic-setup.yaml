@@ -9,6 +9,7 @@
       ansible.builtin.apt:
         update_cache: true
         pkg:
+          - linux-image-generic-hwe-22.04
           - zsh
           - python-is-python3
           - python3-pip
@@ -29,6 +30,8 @@
           - mesa-vulkan-drivers
           - mesa-utils
           - vulkan-tools
+          - plymouth-x11
+          - plymouth-themes
 
 
     - name: Install raspi-config
@@ -340,6 +343,71 @@
         owner: "{{ ansible_user }}"
         group: "{{ ansible_user }}"
         mode: "0664"
+
+    - name: Logo standby theme 1/2
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/blank-logo.png"
+        dest: /usr/share/plymouth/ubuntu-logo.png
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Logo standby theme 2/2
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/blank-logo.png"
+        dest: /usr/share/plymouth/themes/spinner/watermark.png
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Set spinner to bottom of screen
+      become: true
+      become_method: ansible.builtin.sudo
+      community.general.ini_file:
+        path: /usr/share/plymouth/themes/spinner/spinner.plymouth
+        section: "two-step"
+        option: VerticalAlignment
+        value: .9
+        backup: false
+        mode: "0644"
+        owner: root
+        group: root
+
+    - name: Set logo to center of screen
+      become: true
+      become_method: ansible.builtin.sudo
+      community.general.ini_file:
+        path: /usr/share/plymouth/themes/spinner/spinner.plymouth
+        section: "two-step"
+        option: WatermarkVerticalAlignment
+        value: .5
+        backup: false
+        mode: "0644"
+        owner: root
+        group: root
+
+    - name: Add spinner as option
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.command: update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth /usr/share/plymouth/themes/spinner/spinner.plymouth 100
+      changed_when: false
+
+    - name: Set spinner as default
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.command: update-alternatives --set default.plymouth /usr/share/plymouth/themes/spinner/spinner.plymouth
+      changed_when: false
+
+    - name: Update initramfs
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.command: update-initramfs -u
+      changed_when: false
+
 
     - name: Reboot in 1 minute
       become: true

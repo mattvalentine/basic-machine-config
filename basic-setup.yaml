@@ -390,6 +390,8 @@
         owner: root
         group: root
 
+    # TODO: check if spinner is already set
+
     - name: Add spinner as option
       become: true
       become_method: ansible.builtin.sudo
@@ -401,6 +403,31 @@
       become_method: ansible.builtin.sudo
       ansible.builtin.command: update-alternatives --set default.plymouth /usr/share/plymouth/themes/spinner/spinner.plymouth
       changed_when: false
+
+    - name: check if splash is configured in the boot command
+      lineinfile:
+        backup: true
+        path: /etc/default/grub
+        regexp: '^GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"'
+        state: absent
+      check_mode: true
+      register: grub_cmdline_check
+      changed_when: false
+
+    - name: insert splash if missing
+      lineinfile:
+        backrefs: true
+        path: /etc/default/grub
+        regexp: "^(GRUB_CMDLINE_LINUX_DEFAULT=\".*)\"$"
+        line: '\1 quiet splash"'
+      when: grub_cmdline_check.found == 0
+
+    - name: Update grub
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.command: update-grub
+      changed_when: false
+      when: grub_cmdline_check.found == 0
 
     - name: Update initramfs
       become: true

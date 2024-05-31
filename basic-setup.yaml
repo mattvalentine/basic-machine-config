@@ -408,6 +408,11 @@
         /usr/share/plymouth/themes/spinner/spinner.plymouth
       changed_when: false
 
+    - name: Check if grub exists
+      ansible.builtin.stat:
+        path: /etc/default/grub
+      register: grub_check
+
     - name: Check if splash is configured in the boot command
       ansible.builtin.lineinfile:
         backup: true
@@ -417,6 +422,7 @@
       check_mode: true
       register: grub_cmdline_check
       changed_when: false
+      when: grub_check.stat.exists
 
     - name: Insert splash if missing
       ansible.builtin.lineinfile:
@@ -424,16 +430,48 @@
         path: /etc/default/grub
         regexp: '^(GRUB_CMDLINE_LINUX_DEFAULT=".*)"$'
         line: '\1 quiet splash"'
-      when: grub_cmdline_check.found == 0
+      when: grub_check.stat.exists and grub_cmdline_check.found == 0
 
     - name: Update grub
       become: true
       become_method: ansible.builtin.sudo
       ansible.builtin.command: update-grub
       changed_when: false
-      when: grub_cmdline_check.found == 0
+      when: grub_check.stat.exists and grub_cmdline_check.found == 0
 
-    - name: Update initramfs
+    - name: Check for splash for raspberry pi
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.lineinfile:
+        path: /boot/firmware/cmdline.txt
+        regexp: '.*splash quiet plymouth.ignore-serial-consoles.*'
+        state: absent
+      check_mode: true
+      register: raspi_cmdline_check
+      changed_when: false
+      when: ansible_kernel is match(".*raspi.*")
+
+    - name: Insert raspberry pi splash if missing
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.lineinfile:
+        backrefs: true
+        path: /boot/firmware/cmdline.txt
+        regexp: '^(.*)$'
+        line: '\1 splash quiet plymouth.ignore-serial-consoles'
+      when: ansible_kernel is match(".*raspi.*") and raspi_cmdline_check.found == 0
+
+    - name: Disable rainbow boot image for raspberry pi
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.blockinfile:
+        path: /boot/firmware/config.txt
+        block: |
+          [all]
+          disable_splash=1
+      when: ansible_kernel is match(".*raspi.*")
+
+    - name: Update initramfs (this may take a while too)
       become: true
       become_method: ansible.builtin.sudo
       ansible.builtin.command: update-initramfs -u

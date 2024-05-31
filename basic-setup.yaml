@@ -67,7 +67,7 @@
         name: "{{ ansible_user }}"
         group: "{{ ansible_user }}"
         shell: /bin/zsh
-        groups: sudo,audio,dialout,plugdev,video,netdev,bluetooth
+        groups: sudo,audio,dialout,plugdev,video,netdev,bluetooth,lpadmin
         append: true
 
     - name: Change zsh style to avit

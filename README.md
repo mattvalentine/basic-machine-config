@@ -14,14 +14,14 @@ The only updates I have in mind right now are a better standby screen.
 
 ## Prerequisites
 
-Install Ubuntu Server 22.04 or 24.04, and record the user, password, and address, and make sure you can ssh into it and run sudo commands.
+### On your host machine (typically your laptop)
 
 Should work on Linux, Windows (via WSL), or mac. First, install ansible and sshpass:
 
 ```bash
-sudo apt install software-properties-common sshpass
-sudo add-apt-repository --yes --update ppa:ansible/ansible
-sudo apt update
+sudo apt install software-properties-common sshpass && \
+sudo add-apt-repository --yes --update ppa:ansible/ansible && \
+sudo apt update && \
 sudo apt install ansible 
 ```
 
@@ -31,8 +31,35 @@ or on Mac
 brew install ansible sshpass
 ```
 
-Recommended, but not required:
-`sudo apt update && sudo apt install avahi-daemon && sudo apt full-upgrade` on the machine before install. This should make sure things are up to date, and allow the use of `<hostname>.local` on local networks via MDNS.
+### On your target machine (that you want to turn into a linux appliance)
+
+Install Ubuntu Server 22.04 or 24.04, and record the user, password, and address, and make sure you can ssh into it and run sudo commands.
+
+Recommended, but not required on the appliance before install(make sure the image/headers match your version):
+
+```bash
+sudo apt update && \
+sudo apt full-upgrade -y && \
+sudo apt install \ 
+avahi-daemon \
+build-essential \
+linux-image-generic-hwe-22.04 \
+linux-headers-generic-hwe-22.04 \
+
+```
+
+This should make sure things are up to date, and allow the use of `<hostname>.local` on local networks via MDNS. The HWE kernel should play nicer with newer hardware.
+
+On Raspberry Pi it's a good idea to make sure your `eth0` interface is working. If it's not make a file called `/etc/netplan/99-eth0.yaml`:
+
+```yaml
+network:
+  ethernets:
+    eth0:
+      dhcp4: true
+      optional: true
+  version: 2
+```
 
 ## Run
 

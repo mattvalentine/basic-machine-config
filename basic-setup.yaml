@@ -341,4 +341,8 @@
         group: "{{ ansible_user }}"
         mode: "0664"
 
-
+    - name: Reboot in 1 minute
+      become: true
+      become_method: ansible.builtin.sudo
+      ansible.builtin.command: shutdown -r 1
+      changed_when: false
